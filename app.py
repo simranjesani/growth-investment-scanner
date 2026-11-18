@@ -43,8 +43,8 @@ def current_client():
 
 st.title('📈 Private Growth Scanner')
 st.caption('Passive ETF purchases + active value research • private watchlists • no automated trading')
-auth=current_client()
-if not auth:
+auth = current_client()
+if not isinstance(auth, tuple) or len(auth) != 2:
     st.subheader('Sign in')
     st.info('Invitation-only: an administrator must create your account before you can sign in.')
     with st.form('login'):
