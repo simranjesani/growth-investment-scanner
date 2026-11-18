@@ -1,7 +1,5 @@
 import os
 import re
-import secrets
-import string
 from datetime import datetime, timezone
 import streamlit as st
 import pandas as pd
@@ -19,11 +17,8 @@ if any(not config[k] for k in required):
     st.error('Setup required. Add the four keys shown in .streamlit/secrets.toml.example to your deployment secrets.')
     st.stop()
 
-@st.cache_resource
-def clients(url,anon,service):
-    return create_client(url,anon),create_client(url,service)
-
-_,admin=clients(config['SUPABASE_URL'],config['SUPABASE_ANON_KEY'],config['SUPABASE_SERVICE_ROLE_KEY'])
+# Never cache authenticated Supabase clients across Streamlit user sessions.
+# The privileged admin client is created only inside the administrator-only section.
 
 def current_client():
     # Fresh client per rerun avoids cross-user auth state leakage in shared cached objects.
@@ -58,9 +53,11 @@ if not isinstance(auth, tuple) or len(auth) != 2:
             if not response.session: raise ValueError('No session returned')
             st.session_state.auth_session={'access_token':response.session.access_token,'refresh_token':response.session.refresh_token}
             st.rerun()
-        except Exception as e:
-            st.error(f"Sign-in failed: {type(e).__name__}")
-            st.stop()
+        except Exception as exc:
+            # Do not show exception details: they may contain sensitive request data.
+            st.error(f'Sign-in failed ({type(exc).__name__}). Check credentials and Supabase Auth logs.')
+    # A first-time visitor has no session. Do not continue into the dashboard.
+    st.stop()
 
 client,user=auth
 is_admin=(user.email or '').lower()==config['ADMIN_EMAIL'].lower()
@@ -185,6 +182,9 @@ with sections[3]:
             except Exception: st.error('Could not remove ticker.')
 
 if is_admin:
+    # Service-role operations are restricted to the verified administrator view.
+    # Never use this client for regular watchlist requests (RLS must apply).
+    admin=create_client(config['SUPABASE_URL'],config['SUPABASE_SERVICE_ROLE_KEY'])
     with sections[4]:
         st.subheader('Invite-only access')
         st.caption('Admin creates an account with a temporary password and shares credentials through a secure channel. This version does not email invitations automatically.')
