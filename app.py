@@ -59,8 +59,8 @@ if not auth:
             st.session_state.auth_session={'access_token':response.session.access_token,'refresh_token':response.session.refresh_token}
             st.rerun()
         except Exception as e:
-    st.error(f"Sign-in failed: {type(e).__name__}")
-    st.stop()
+            st.error(f"Sign-in failed: {type(e).__name__}")
+            st.stop()
 
 client,user=auth
 is_admin=(user.email or '').lower()==config['ADMIN_EMAIL'].lower()
